@@ -1,4 +1,5 @@
 # database.py
+# connects to db and creates sessions for use in the app
 
 import os
 from sqlalchemy import create_engine

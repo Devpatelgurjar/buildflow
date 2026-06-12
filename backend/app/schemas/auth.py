@@ -1,7 +1,8 @@
+import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr,ConfigDict
 
 
 class RegisterUser(BaseModel):
@@ -19,15 +20,13 @@ class LoginUser(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: int
+    id: uuid.UUID
     email: EmailStr
     username: Optional[str] = None
     is_active: Optional[bool] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
-
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ClerkVerifyResponse(BaseModel):

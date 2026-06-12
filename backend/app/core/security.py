@@ -1,34 +1,61 @@
-import os
+# app/core/security.py
+from pwdlib import PasswordHash
+from datetime import datetime, timedelta, timezone
 
-from fastapi import HTTPException, Request
-from clerk_backend_api.security import authenticate_request
-from clerk_backend_api.security.types import AuthenticateRequestOptions, AuthStatus
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
+from app.core.config import settings
+from app.core.exceptions import UnauthorizedException
 
-def get_clerk_secret_key() -> str:
-    secret_key = os.getenv("CLERK_SECRET_KEY")
-    if not secret_key:
-        raise RuntimeError(
-            "CLERK_SECRET_KEY is required for Clerk token verification. Set it in backend/.env or your environment."
-        )
-    return secret_key
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+password_hash = PasswordHash.recommended()
 
 
-def verify_clerk_request(request: Request) -> dict:
-    secret_key = get_clerk_secret_key()
-    frontend_url = os.getenv("CLERK_FRONTEND_URL")
+# ─────────────────────────────────────────────
+# Password
+# ─────────────────────────────────────────────
 
-    options = AuthenticateRequestOptions(
-        secret_key=secret_key,
-        authorized_parties=[frontend_url] if frontend_url else None,
-        accepts_token=["any"],
+def hash_password(password: str) -> str:
+    return password_hash.hash(password)
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return password_hash.verify(plain, hashed)  
+    except ValueError:
+        # Handle invalid hash format
+        return False
+
+
+# ─────────────────────────────────────────────
+# JWT
+# ─────────────────────────────────────────────
+
+def create_access_token(subject: str) -> str:
+    """
+    Create a JWT access token.
+    subject: typically the user's UUID as string.
+    """
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.access_token_expire_minutes
     )
+    payload = {"sub": subject, "exp": expire, "type": "access"}
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
-    auth_state = authenticate_request(request, options)
-    if auth_state.status != AuthStatus.SIGNED_IN:
-        raise HTTPException(
-            status_code=401,
-            detail=auth_state.message or "Unauthorized Clerk session",
+
+def decode_access_token(token: str) -> str:
+    """
+    Decode and validate a JWT token.
+    Returns the subject (user UUID) or raises UnauthorizedException.
+    """
+    try:
+        payload = jwt.decode(
+            token, settings.secret_key, algorithms=[settings.jwt_algorithm]
         )
-
-    return auth_state.payload or {}
+        subject: str | None = payload.get("sub")
+        if subject is None:
+            raise UnauthorizedException("Token missing subject")
+        return subject
+    except JWTError:
+        raise UnauthorizedException("Invalid or expired token")

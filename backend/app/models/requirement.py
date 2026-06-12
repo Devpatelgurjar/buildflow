@@ -1,28 +1,39 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    UUID,
-    JSON,
-    String,
-    ForeignKey,
-    DateTime
-)
+# app/models/requirement.py
+import uuid
 
-from datetime import datetime
+from sqlalchemy import Integer, Boolean, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base
+from app.db.base import Base
 
-class Requirement(Base):
-    __tablename__ = "requirements"
 
-    id = Column(UUID)
+class RequirementDraft(Base):
+    __tablename__ = "requirement_drafts"
 
-    project_id = Column(UUID)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,   # One active draft per project
+        index=True,
+    )
 
-    functional_requirements = Column(JSON)
+    # JSONB — structured requirements validated by Pydantic before storage.
+    # Never trust raw AI output; always validate first.
+    content: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
-    non_functional_requirements = Column(JSON)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
-    assumptions = Column(JSON)
+    # Future: allow re-generation, marking old ones inactive
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
-    created_at = Column(DateTime)
+    # Relationships
+    project: Mapped["Project"] = relationship(  # noqa: F821
+        "Project",
+        back_populates="requirement_draft",
+        lazy="noload",
+    )
+
+    def __repr__(self) -> str:
+        return f"<RequirementDraft id={self.id} project_id={self.project_id} v{self.version}>"

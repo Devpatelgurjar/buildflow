@@ -1,63 +1,53 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    UUID,
-    Text,
-    ForeignKey,
-    JSON,
-    DateTime
-)
+# app/models/diagram.py
+import uuid
 
-from datetime import datetime
+from sqlalchemy import Integer, Boolean, Text, ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base
+from app.db.base import Base
 
-
-# class Diagram(Base):
-
-#     __tablename__ = "diagrams"
-
-#     id = Column(
-#         Integer,
-#         primary_key=True,
-#         index=True
-#     )
-
-#     project_id = Column(
-#         Integer,
-#         ForeignKey("projects.id"),
-#         nullable=False
-#     )
-
-#     diagram_json = Column(
-#         JSON,
-#         nullable=True
-#     )
-
-#     version = Column(
-#         Integer,
-#         default=1
-#     )
-
-#     created_at = Column(
-#         DateTime,
-#         default=datetime.utcnow
-#     )
-
-#     updated_at = Column(
-#         DateTime,
-#         default=datetime.utcnow
-#     )
 
 class Diagram(Base):
     __tablename__ = "diagrams"
 
-    id = Column(UUID)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
-    project_id = Column(UUID)
+    architecture_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("architectures.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
-    mermaid_code = Column(Text)
+    # Mermaid diagram source code
+    mermaid_code: Mapped[str] = mapped_column(Text, nullable=False)
 
-    svg_url = Column(Text)
+    # Version increments on each review + regeneration
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
-    png_url = Column(Text)
+    # Only one diagram is "active" (latest approved) at a time
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    # Optional label for the version (e.g. "Added Redis Cache")
+    version_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    project: Mapped["Project"] = relationship(  # noqa: F821
+        "Project",
+        back_populates="diagrams",
+        lazy="noload",
+    )
+
+    architecture: Mapped["Architecture"] = relationship(
+        "Architecture",
+        back_populates="diagrams",
+        lazy="noload",
+    )
+
+    def __repr__(self) -> str:
+        return f"<Diagram id={self.id} project_id={self.project_id} v{self.version}>"
