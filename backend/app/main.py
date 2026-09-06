@@ -28,9 +28,17 @@ app = FastAPI(
 app.get('/')(lambda: {"message": f"Welcome to {settings.app_name}!"})
 
 # ── Middleware ────────────────────────────────────────────────────
+origins = [
+    "http://localhost:3000",    # Common React port
+    "http://127.0.0.1:8000",    # Local API
+]
+
+if not settings.debug:
+    origins.append("https://yourproductiondomain.com")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.debug else [],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

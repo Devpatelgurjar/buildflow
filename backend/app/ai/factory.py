@@ -25,10 +25,8 @@ def _get_provider_instance() -> AIProvider:
         return AnthropicProvider()
 
     if provider == "gemini":
-        raise NotImplementedError(
-            "Gemini provider not yet implemented. "
-            "Set AI_PROVIDER=mock for local dev."
-        )
+        from app.ai.providers.gemini_provider import GeminiProvider
+        return GeminiProvider()
 
     raise ValueError(
         f"Unknown AI provider: '{provider}'. "

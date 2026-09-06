@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from app.schemas.chat import ContextMessage
 
 
-class AIProvider(ABC):
+class   AIProvider(ABC):
     """
     Abstract interface for all AI/LLM providers.
 
